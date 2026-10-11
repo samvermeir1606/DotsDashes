@@ -1,0 +1,737 @@
+<title>Dots &amp; Dashes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one narrow column; the board is the hero, settings above it, play controls below. */
+:root {
+  --bg: #EDF0F3;
+  --paper: #FBFCFD;
+  --ink: #15202C;
+  --muted: #5A6A7B;
+  --rule: #C6CFD9;
+  --given: #E1E6EC;
+  --accent: #2756C2;
+  --accent-soft: #DCE5F8;
+  --bad: #C4372C;
+  --bad-soft: #F8DEDB;
+  --good: #1D8457;
+  --display: "Bricolage Grotesque", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F151C; --paper: #18212B; --ink: #E4EAF1; --muted: #8C9BAB; --rule: #2C3946;
+    --given: #222D39; --accent: #86A8FF; --accent-soft: #23314F; --bad: #FF7B6E; --bad-soft: #3D2222; --good: #5BD19A;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F151C; --paper: #18212B; --ink: #E4EAF1; --muted: #8C9BAB; --rule: #2C3946;
+  --given: #222D39; --accent: #86A8FF; --accent-soft: #23314F; --bad: #FF7B6E; --bad-soft: #3D2222; --good: #5BD19A;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { min-height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 1rem;
+  padding-inline: 16px;
+  padding-block: 20px 40px;
+}
+.wrap { max-width: 34rem; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+
+header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 {
+  margin: 0;
+  font-size: clamp(1.9rem, 7vw, 2.6rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-variation-settings: "opsz" 96;
+  text-wrap: balance;
+}
+h1 .amp { color: var(--accent); font-weight: 500; }
+.signal { display: flex; align-items: center; gap: 6px; padding-bottom: 6px; color: var(--muted); }
+.signal i { display: block; }
+.signal .d { width: 11px; height: 11px; border: 2px solid currentColor; border-radius: 50%; }
+.signal .l { width: 2.5px; height: 14px; background: currentColor; border-radius: 2px; }
+
+.settings { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.seg { display: inline-flex; border: 1.5px solid var(--rule); border-radius: 8px; overflow: hidden; background: var(--paper); }
+.seg button {
+  appearance: none; border: 0; background: transparent; color: var(--muted);
+  font: 500 0.82rem/1 var(--mono); padding: 9px 11px; cursor: pointer;
+}
+.seg button + button { border-left: 1.5px solid var(--rule); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.btn {
+  appearance: none; cursor: pointer;
+  border: 1.5px solid var(--ink); background: var(--ink); color: var(--paper);
+  font: 600 0.9rem/1 var(--display); padding: 10px 14px; border-radius: 8px;
+}
+.btn.ghost { background: var(--paper); color: var(--ink); border-color: var(--rule); }
+.btn.warn { background: var(--bad); border-color: var(--bad); color: var(--paper); }
+.btn:disabled { opacity: .4; cursor: default; }
+.settings .btn { margin-left: auto; }
+button:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; }
+
+.stats {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  font: 400 0.8rem/1 var(--mono); color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+.stats b { color: var(--ink); font-weight: 500; }
+
+.board-wrap { position: relative; }
+.board {
+  display: grid;
+  grid-template-columns: repeat(var(--n, 10), 1fr);
+  gap: 1px;
+  width: 100%;
+  aspect-ratio: 1;
+  max-width: 100%;
+  background: var(--rule);
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.cell {
+  appearance: none; border: 0; padding: 0; margin: 0;
+  background: var(--paper);
+  color: var(--accent);
+  position: relative;
+  cursor: pointer;
+  container-type: size;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color .15s;
+}
+.cell.given { background: var(--given); color: var(--ink); cursor: default; }
+.cell::after { content: ""; position: absolute; inset: 0; margin: auto; }
+.cell[data-v="1"]::after {
+  width: 46%; height: 46%; border-radius: 50%;
+  border: max(2px, 7cqw) solid currentColor;
+}
+.cell[data-v="2"]::after {
+  width: max(2.5px, 8cqw); height: 56%; border-radius: 99px;
+  background: currentColor;
+}
+.cell.err { color: var(--bad); background: var(--bad-soft); }
+.cell.given.err { color: var(--bad); }
+.cell:focus-visible { outline: 2.5px solid var(--accent); outline-offset: -3px; z-index: 1; }
+.cell.flash { animation: flash 1.4s ease-out; }
+@keyframes flash { 0%, 40% { background: var(--accent-soft); } 100% { background: var(--paper); } }
+@media (hover: hover) { .cell:not(.given):hover { background: var(--accent-soft); } }
+.board.solved .cell { color: var(--good); }
+.board.solved .cell.given { color: var(--ink); }
+.board.solved .cell::after { animation: pop .5s ease-out both; animation-delay: calc(var(--d) * 18ms); }
+@keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.35); } 100% { transform: scale(1); } }
+
+.overlay {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  backdrop-filter: blur(1.5px);
+}
+.overlay .card {
+  background: var(--paper); border: 2px solid var(--ink); border-radius: 10px;
+  padding: 22px 26px; text-align: center; display: flex; flex-direction: column; gap: 10px; align-items: center;
+  max-width: calc(100% - 32px);
+}
+.overlay h2 { margin: 0; font-size: 1.7rem; letter-spacing: -0.02em; }
+.overlay p { margin: 0; font: 400 0.85rem/1.4 var(--mono); color: var(--muted); }
+
+.controls { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.controls .btn { padding: 12px 6px; }
+.toggle { display: flex; align-items: center; gap: 8px; font-size: 0.92rem; color: var(--muted); cursor: pointer; }
+.toggle input { width: 18px; height: 18px; accent-color: var(--accent); }
+.status { min-height: 1.4em; font-size: 0.95rem; line-height: 1.4; }
+.status.bad { color: var(--bad); }
+
+details { border-top: 1.5px solid var(--rule); padding-top: 12px; }
+summary { cursor: pointer; font-weight: 700; font-size: 1.05rem; }
+.rules { margin: 12px 0 0; padding-left: 1.2em; display: grid; gap: 8px; line-height: 1.5; max-width: 62ch; }
+.rules li::marker { font-family: var(--mono); color: var(--muted); }
+.mk { display: inline-block; vertical-align: -1px; margin: 0 1px; }
+.mk.d { width: 0.8em; height: 0.8em; border: 2px solid var(--accent); border-radius: 50%; }
+.mk.l { width: 2.5px; height: 0.95em; background: var(--accent); border-radius: 2px; margin: 0 4px; }
+.keys { margin-top: 12px; color: var(--muted); font-size: 0.9rem; line-height: 1.5; }
+kbd { font: 500 0.78rem var(--mono); border: 1px solid var(--rule); border-radius: 4px; padding: 1px 5px; background: var(--paper); color: var(--ink); }
+
+@media (max-width: 420px) {
+  .settings .btn { margin-left: 0; flex: 1 0 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cell, .cell::after { animation: none !important; transition: none; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Dots <span class="amp">&amp;</span> Dashes</h1>
+    <div class="signal" aria-hidden="true"><i class="d"></i><i class="l"></i><i class="d"></i><i class="d"></i><i class="l"></i><i class="l"></i></div>
+  </header>
+
+  <div class="settings">
+    <div class="seg" role="group" aria-label="Grid size" id="sizeSeg">
+      <button type="button" data-size="6">6</button>
+      <button type="button" data-size="8">8</button>
+      <button type="button" data-size="10">10</button>
+      <button type="button" data-size="12">12</button>
+    </div>
+    <div class="seg" role="group" aria-label="Difficulty" id="levelSeg">
+      <button type="button" data-level="0">Easy</button>
+      <button type="button" data-level="1">Medium</button>
+      <button type="button" data-level="2">Hard</button>
+    </div>
+    <button type="button" class="btn" id="newBtn">New puzzle</button>
+  </div>
+
+  <div class="stats">
+    <span id="label">10×10 · Medium</span>
+    <span>Left <b id="left">0</b></span>
+    <span><b id="time">0:00</b></span>
+  </div>
+
+  <div class="board-wrap">
+    <div class="board" id="board" role="grid" aria-label="Puzzle grid"></div>
+    <div class="overlay" id="overlay" hidden>
+      <div class="card">
+        <h2>Solved</h2>
+        <p id="winText"></p>
+        <button type="button" class="btn" id="againBtn">Next puzzle</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button type="button" class="btn ghost" id="undoBtn">Undo</button>
+    <button type="button" class="btn ghost" id="redoBtn">Redo</button>
+    <button type="button" class="btn ghost" id="hintBtn">Hint</button>
+    <button type="button" class="btn ghost" id="clearBtn">Restart</button>
+  </div>
+
+  <label class="toggle"><input type="checkbox" id="errToggle" checked> Highlight rule breaks as I play</label>
+  <div class="status" id="status" aria-live="polite"></div>
+
+  <details id="help">
+    <summary>How to play</summary>
+    <ol class="rules">
+      <li>Fill every cell with a dot <span class="mk d"></span> or a dash <span class="mk l"></span>. Tap a cell to cycle: empty, dot, dash.</li>
+      <li>Never more than two of the same mark next to each other, across or down. <span class="mk d"></span><span class="mk d"></span><span class="mk d"></span> is not allowed.</li>
+      <li>Every row and every column has the same number of dots and dashes. On a 10×10 grid that is five of each.</li>
+      <li>No two rows are identical, and no two columns are identical.</li>
+    </ol>
+    <p class="keys">Shaded cells are given and can't be changed. Each puzzle has exactly one solution and can be solved by logic alone.<br>
+    On a keyboard: arrows to move, <kbd>1</kbd> or <kbd>.</kbd> for a dot, <kbd>2</kbd> or <kbd>-</kbd> for a dash, <kbd>Backspace</kbd> to clear, <kbd>Ctrl</kbd>+<kbd>Z</kbd> to undo. Right-click cycles backwards.</p>
+  </details>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const EMPTY = 0, DOT = 1, DASH = 2;
+  const STORE_KEY = "dots-dashes-v1";
+  const LEVELS = ["Easy", "Medium", "Hard"];
+
+  // ---------- Line catalogue: every valid full line for size n, as bitmasks (bit j set = dash at j) ----------
+  const LINES = {};
+  function linesFor(n) {
+    if (LINES[n]) return LINES[n];
+    const out = [];
+    for (let m = 0; m < (1 << n); m++) {
+      let c = 0;
+      for (let j = 0; j < n; j++) c += (m >> j) & 1;
+      if (c !== n / 2) continue;
+      let ok = true;
+      for (let j = 0; j + 2 < n; j++) {
+        const t = (m >> j) & 7;
+        if (t === 0 || t === 7) { ok = false; break; }
+      }
+      if (ok) out.push(m);
+    }
+    return (LINES[n] = out);
+  }
+
+  const rand = k => Math.floor(Math.random() * k);
+  function shuffle(a) {
+    for (let i = a.length - 1; i > 0; i--) { const j = rand(i + 1); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
+  // Cell indices of line i; o=0 rows, o=1 columns
+  function lineIdx(n, o, i) {
+    const r = new Array(n);
+    for (let j = 0; j < n; j++) r[j] = o === 0 ? i * n + j : j * n + i;
+    return r;
+  }
+
+  // ---------- Generate a random complete valid grid ----------
+  function genSolution(n) {
+    const L = linesFor(n), half = n / 2;
+    for (;;) {
+      const rows = [];
+      let nodes = 0;
+      const colsOk = k => {
+        for (let c = 0; c < n; c++) {
+          let cnt = 0;
+          for (let r = 0; r <= k; r++) cnt += (rows[r] >> c) & 1;
+          if (cnt > half || k + 1 - cnt > half) return false;
+          if (k >= 2) {
+            const a = (rows[k] >> c) & 1, b = (rows[k - 1] >> c) & 1, d = (rows[k - 2] >> c) & 1;
+            if (a === b && b === d) return false;
+          }
+        }
+        return true;
+      };
+      const colsDistinct = () => {
+        const s = new Set();
+        for (let c = 0; c < n; c++) {
+          let m = 0;
+          for (let r = 0; r < n; r++) m |= ((rows[r] >> c) & 1) << r;
+          s.add(m);
+        }
+        return s.size === n;
+      };
+      const rec = k => {
+        if (++nodes > 40000) return false;
+        if (k === n) return colsDistinct();
+        const off = rand(L.length);
+        for (let t = 0; t < L.length; t++) {
+          const m = L[(off + t) % L.length];
+          if (rows.indexOf(m) !== -1 && rows.indexOf(m) < k) continue;
+          rows[k] = m;
+          if (colsOk(k) && rec(k + 1)) return true;
+        }
+        rows.length = k;
+        return false;
+      };
+      if (rec(0)) {
+        const g = new Array(n * n);
+        for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) g[r * n + c] = ((rows[r] >> c) & 1) ? DASH : DOT;
+        return g;
+      }
+    }
+  }
+
+  // ---------- Deductions ----------
+  const other = v => (v === DOT ? DASH : DOT);
+  const name = v => (v === DOT ? "dot" : "dash");
+  const lineName = (o, i) => (o === 0 ? `row ${i + 1}` : `column ${i + 1}`);
+
+  // Simple techniques: pairs, sandwiches, full counts
+  function basicDeductions(g, n, firstOnly) {
+    const out = [], half = n / 2, seen = new Set();
+    const add = (k, v, why) => { if (!seen.has(k)) { seen.add(k); out.push({ k, v, why }); } };
+    for (let o = 0; o < 2; o++) for (let i = 0; i < n; i++) {
+      const idx = lineIdx(n, o, i);
+      for (let j = 0; j + 2 < n; j++) {
+        const a = g[idx[j]], b = g[idx[j + 1]], c = g[idx[j + 2]];
+        if (a && a === b && !c) add(idx[j + 2], other(a), `Two ${name(a)}s side by side, so the next cell must be a ${name(other(a))}.`);
+        if (b && b === c && !a) add(idx[j], other(b), `Two ${name(b)}s side by side, so the cell before them must be a ${name(other(b))}.`);
+        if (a && a === c && !b) add(idx[j + 1], other(a), `A cell between two ${name(a)}s must be a ${name(other(a))}.`);
+        if (firstOnly && out.length) return out;
+      }
+      let dots = 0, dashes = 0;
+      for (const k of idx) { if (g[k] === DOT) dots++; else if (g[k] === DASH) dashes++; }
+      if (dots + dashes < n && (dots === half || dashes === half)) {
+        const v = dots === half ? DASH : DOT;
+        for (const k of idx) if (!g[k]) add(k, v, `${lineName(o, i)[0].toUpperCase() + lineName(o, i).slice(1)} already has all ${half} ${name(other(v))}s, so the rest are ${name(v)}es.`.replace("dotes", "dots"));
+        if (firstOnly && out.length) return out;
+      }
+    }
+    return out;
+  }
+
+  // Strong technique: enumerate every valid way to finish a line; keep cells they all agree on
+  function lineDeductions(g, n, useUnique, firstOnly) {
+    const L = linesFor(n), out = [];
+    for (let o = 0; o < 2; o++) {
+      const done = new Set();
+      const info = [];
+      for (let i = 0; i < n; i++) {
+        const idx = lineIdx(n, o, i);
+        let km = 0, kv = 0;
+        for (let j = 0; j < n; j++) {
+          const v = g[idx[j]];
+          if (v) { km |= 1 << j; if (v === DASH) kv |= 1 << j; }
+        }
+        info.push({ idx, km, kv });
+        if (km === (1 << n) - 1) done.add(kv);
+      }
+      for (let i = 0; i < n; i++) {
+        const { idx, km, kv } = info[i];
+        if (km === (1 << n) - 1) continue;
+        let and = -1, or = 0, cnt = 0;
+        for (const m of L) {
+          if ((m & km) !== kv) continue;
+          if (useUnique && done.has(m)) continue;
+          and &= m; or |= m; cnt++;
+        }
+        if (!cnt) return null; // contradiction
+        for (let j = 0; j < n; j++) {
+          if (km & (1 << j)) continue;
+          let v = 0;
+          if (and & (1 << j)) v = DASH; else if (!(or & (1 << j))) v = DOT;
+          if (v) {
+            out.push({ k: idx[j], v, why: useUnique
+              ? `Every way to finish ${lineName(o, i)} that follows the rules, including no repeated lines, puts a ${name(v)} here.`
+              : `Every way to finish ${lineName(o, i)} that follows the rules puts a ${name(v)} here.` });
+            if (firstOnly) return out;
+          }
+        }
+      }
+    }
+    return out;
+  }
+
+  // Logic-only solver. level 0: basic; 1: + line enumeration; 2: + no-duplicate-lines rule
+  function solvesByLogic(puz, n, level) {
+    const g = puz.slice();
+    for (;;) {
+      let d = basicDeductions(g, n, false);
+      if (!d.length && level >= 1) {
+        d = lineDeductions(g, n, false, false);
+        if (d && !d.length && level >= 2) d = lineDeductions(g, n, true, false);
+      }
+      if (!d) return false;
+      if (!d.length) break;
+      for (const { k, v } of d) {
+        if (!g[k]) g[k] = v;
+        else if (g[k] !== v) return false;
+      }
+    }
+    return g.every(v => v);
+  }
+
+  // Prefer puzzles that actually need this level's techniques, so Hard is harder than Medium
+  function makePuzzle(n, level) {
+    let p;
+    for (let tries = 0; tries < 25; tries++) {
+      p = makeOnePuzzle(n, level);
+      if (level === 0 || !solvesByLogic(p.givens, n, level - 1)) break;
+    }
+    return p;
+  }
+
+  function makeOnePuzzle(n, level) {
+    const sol = genSolution(n);
+    const puz = sol.slice();
+    for (const k of shuffle([...Array(n * n).keys()])) {
+      const v = puz[k];
+      puz[k] = EMPTY;
+      if (!solvesByLogic(puz, n, level)) puz[k] = v;
+    }
+    return { sol, givens: puz };
+  }
+
+  // ---------- Rule checking on the player's grid ----------
+  function violations(g, n) {
+    const bad = new Set(), half = n / 2;
+    for (let o = 0; o < 2; o++) {
+      const full = new Map();
+      for (let i = 0; i < n; i++) {
+        const idx = lineIdx(n, o, i);
+        for (let j = 0; j + 2 < n; j++) {
+          const a = g[idx[j]];
+          if (a && a === g[idx[j + 1]] && a === g[idx[j + 2]]) { bad.add(idx[j]); bad.add(idx[j + 1]); bad.add(idx[j + 2]); }
+        }
+        let dots = 0, dashes = 0;
+        for (const k of idx) { if (g[k] === DOT) dots++; else if (g[k] === DASH) dashes++; }
+        if (dots > half) for (const k of idx) if (g[k] === DOT) bad.add(k);
+        if (dashes > half) for (const k of idx) if (g[k] === DASH) bad.add(k);
+        if (dots + dashes === n) {
+          const key = idx.map(k => g[k]).join("");
+          if (!full.has(key)) full.set(key, []);
+          full.get(key).push(idx);
+        }
+      }
+      for (const lines of full.values()) if (lines.length > 1) for (const idx of lines) for (const k of idx) bad.add(k);
+    }
+    return bad;
+  }
+
+  // ---------- State ----------
+  let S = null;              // { n, level, givens, sol, cur, elapsed, solved, hints, past, future }
+  const prefs = { n: 10, level: 1, showErr: true };
+  let cells = [];
+  let focusIdx = 0;
+
+  const $ = id => document.getElementById(id);
+  const boardEl = $("board"), statusEl = $("status");
+
+  function save() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify({ S, prefs })); } catch (e) {}
+  }
+  function load() {
+    try { return JSON.parse(localStorage.getItem(STORE_KEY) || "null"); } catch (e) { return null; }
+  }
+  function validState(s) {
+    return s && [6, 8, 10, 12].includes(s.n) && Array.isArray(s.cur) && s.cur.length === s.n * s.n &&
+      Array.isArray(s.sol) && s.sol.length === s.n * s.n && Array.isArray(s.givens);
+  }
+
+  function say(msg, bad) {
+    statusEl.textContent = msg || "";
+    statusEl.classList.toggle("bad", !!bad);
+  }
+
+  function newGame() {
+    say("Making a puzzle…");
+    boardEl.style.opacity = ".4";
+    setTimeout(() => {
+      const { sol, givens } = makePuzzle(prefs.n, prefs.level);
+      S = { n: prefs.n, level: prefs.level, givens, sol, cur: givens.slice(), elapsed: 0, solved: false, hints: 0, past: [], future: [] };
+      boardEl.style.opacity = "";
+      focusIdx = 0;
+      build();
+      say("");
+      save();
+    }, 30);
+  }
+
+  function build() {
+    const n = S.n;
+    boardEl.style.setProperty("--n", n);
+    boardEl.innerHTML = "";
+    cells = [];
+    for (let k = 0; k < n * n; k++) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "cell";
+      b.tabIndex = k === focusIdx ? 0 : -1;
+      b.dataset.k = k;
+      b.style.setProperty("--d", (k % n) + Math.floor(k / n));
+      if (S.givens[k]) b.classList.add("given");
+      boardEl.appendChild(b);
+      cells.push(b);
+    }
+    $("label").textContent = `${n}×${n} · ${LEVELS[S.level]}`;
+    render();
+  }
+
+  function render() {
+    const n = S.n;
+    const bad = prefs.showErr || isFull() ? violations(S.cur, n) : new Set();
+    let left = 0;
+    for (let k = 0; k < n * n; k++) {
+      const v = S.cur[k];
+      if (!v) left++;
+      const c = cells[k];
+      c.dataset.v = v;
+      c.classList.toggle("err", bad.has(k));
+      c.setAttribute("aria-label", `Row ${Math.floor(k / n) + 1}, column ${k % n + 1}: ${v === DOT ? "dot" : v === DASH ? "dash" : "empty"}${S.givens[k] ? ", given" : ""}`);
+    }
+    $("left").textContent = left;
+    $("time").textContent = fmt(S.elapsed);
+    $("undoBtn").disabled = !S.past.length || S.solved;
+    $("redoBtn").disabled = !S.future.length || S.solved;
+    $("hintBtn").disabled = S.solved;
+    boardEl.classList.toggle("solved", S.solved);
+    $("overlay").hidden = !S.solved;
+    if (S.solved) $("winText").textContent = `${n}×${n} ${LEVELS[S.level].toLowerCase()} in ${fmt(S.elapsed)}` + (S.hints ? ` with ${S.hints} hint${S.hints > 1 ? "s" : ""}` : " with no hints");
+    for (const b of $("sizeSeg").children) b.setAttribute("aria-pressed", +b.dataset.size === prefs.n);
+    for (const b of $("levelSeg").children) b.setAttribute("aria-pressed", +b.dataset.level === prefs.level);
+  }
+
+  const isFull = () => S.cur.every(v => v);
+  function fmt(s) {
+    const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60;
+    return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(x).padStart(2, "0");
+  }
+
+  function setCell(k, v, fromHint) {
+    if (S.solved || S.givens[k] || S.cur[k] === v) return;
+    S.past.push([k, S.cur[k]]);
+    if (S.past.length > 500) S.past.shift();
+    S.future = [];
+    S.cur[k] = v;
+    if (!fromHint) say("");
+    afterMove();
+  }
+
+  function afterMove() {
+    if (isFull()) {
+      if (violations(S.cur, S.n).size === 0) {
+        S.solved = true;
+        say("");
+      } else {
+        say("The grid is full but some rules are broken. The red cells show where.", true);
+      }
+    }
+    render();
+    save();
+  }
+
+  function undo() {
+    if (S.solved || !S.past.length) return;
+    const [k, v] = S.past.pop();
+    S.future.push([k, S.cur[k]]);
+    S.cur[k] = v;
+    say("");
+    render(); save();
+  }
+  function redo() {
+    if (S.solved || !S.future.length) return;
+    const [k, v] = S.future.pop();
+    S.past.push([k, S.cur[k]]);
+    S.cur[k] = v;
+    afterMove();
+  }
+
+  function flash(k) {
+    const c = cells[k];
+    c.classList.remove("flash");
+    void c.offsetWidth;
+    c.classList.add("flash");
+    setTimeout(() => c.classList.remove("flash"), 1500);
+  }
+
+  function hint() {
+    if (S.solved) return;
+    const n = S.n;
+    const wrong = [];
+    for (let k = 0; k < n * n; k++) if (S.cur[k] && S.cur[k] !== S.sol[k]) wrong.push(k);
+    if (wrong.length) {
+      wrong.forEach(flash);
+      say(wrong.length === 1 ? "This mark doesn't match the solution. Try changing it." : `${wrong.length} marks don't match the solution. They're flashing.`, true);
+      S.hints++; save();
+      return;
+    }
+    let d = basicDeductions(S.cur, n, true);
+    if (!d.length) d = lineDeductions(S.cur, n, false, true) || [];
+    if (!d.length) d = lineDeductions(S.cur, n, true, true) || [];
+    let k, why;
+    if (d.length) ({ k, why } = d[0]);
+    else {
+      const empties = [];
+      for (let i = 0; i < n * n; i++) if (!S.cur[i]) empties.push(i);
+      if (!empties.length) return;
+      k = empties[rand(empties.length)];
+      why = "Here's a free one.";
+    }
+    S.hints++;
+    focusCell(k);
+    setCell(k, S.sol[k], true);
+    flash(k);
+    say(why);
+  }
+
+  // Two-tap confirm for destructive buttons
+  function confirmTap(btn, label, action) {
+    const inProgress = S && !S.solved && S.cur.some((v, k) => v && !S.givens[k]);
+    if (!inProgress || btn.dataset.armed) {
+      clearTimeout(btn._t);
+      delete btn.dataset.armed;
+      btn.textContent = label;
+      btn.classList.remove("warn");
+      action();
+      return;
+    }
+    btn.dataset.armed = "1";
+    btn.textContent = "Tap again";
+    btn.classList.add("warn");
+    btn._t = setTimeout(() => { delete btn.dataset.armed; btn.textContent = label; btn.classList.remove("warn"); }, 2500);
+  }
+
+  function focusCell(k) {
+    if (cells[focusIdx]) cells[focusIdx].tabIndex = -1;
+    focusIdx = k;
+    cells[k].tabIndex = 0;
+  }
+
+  // ---------- Events ----------
+  boardEl.addEventListener("click", e => {
+    const c = e.target.closest(".cell");
+    if (!c) return;
+    const k = +c.dataset.k;
+    focusCell(k);
+    if (S.givens[k]) return;
+    setCell(k, (S.cur[k] + 1) % 3);
+  });
+  boardEl.addEventListener("contextmenu", e => {
+    const c = e.target.closest(".cell");
+    if (!c) return;
+    e.preventDefault();
+    const k = +c.dataset.k;
+    focusCell(k);
+    if (S.givens[k]) return;
+    setCell(k, (S.cur[k] + 2) % 3);
+  });
+  boardEl.addEventListener("keydown", e => {
+    const c = e.target.closest(".cell");
+    if (!c) return;
+    const n = S.n, k = +c.dataset.k, r = Math.floor(k / n), col = k % n;
+    let to = -1;
+    switch (e.key) {
+      case "ArrowUp": to = ((r + n - 1) % n) * n + col; break;
+      case "ArrowDown": to = ((r + 1) % n) * n + col; break;
+      case "ArrowLeft": to = r * n + (col + n - 1) % n; break;
+      case "ArrowRight": to = r * n + (col + 1) % n; break;
+      case "1": case ".": case "o": case "O": setCell(k, DOT); e.preventDefault(); return;
+      case "2": case "-": case "|": case "l": setCell(k, DASH); e.preventDefault(); return;
+      case "0": case "Backspace": case "Delete": setCell(k, EMPTY); e.preventDefault(); return;
+      default: return;
+    }
+    e.preventDefault();
+    focusCell(to);
+    cells[to].focus();
+  });
+  document.addEventListener("keydown", e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+    else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { e.preventDefault(); redo(); }
+  });
+
+  $("sizeSeg").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    prefs.n = +b.dataset.size; render(); save();
+    if (S && S.n !== prefs.n) say("Tap New puzzle to start a " + prefs.n + "×" + prefs.n + " grid.");
+  });
+  $("levelSeg").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    prefs.level = +b.dataset.level; render(); save();
+    if (S && S.level !== prefs.level) say("Tap New puzzle to start a " + LEVELS[prefs.level].toLowerCase() + " one.");
+  });
+  $("newBtn").addEventListener("click", e => confirmTap(e.currentTarget, "New puzzle", newGame));
+  $("againBtn").addEventListener("click", newGame);
+  $("undoBtn").addEventListener("click", undo);
+  $("redoBtn").addEventListener("click", redo);
+  $("hintBtn").addEventListener("click", hint);
+  $("clearBtn").addEventListener("click", e => confirmTap(e.currentTarget, "Restart", () => {
+    S.cur = S.givens.slice(); S.past = []; S.future = []; S.elapsed = 0; S.hints = 0; S.solved = false;
+    say("Puzzle restarted."); render(); save();
+  }));
+  $("errToggle").addEventListener("change", e => { prefs.showErr = e.target.checked; render(); save(); });
+
+  setInterval(() => {
+    if (!S || S.solved || document.hidden) return;
+    S.elapsed++;
+    $("time").textContent = fmt(S.elapsed);
+    if (S.elapsed % 5 === 0) save();
+  }, 1000);
+  document.addEventListener("visibilitychange", save);
+
+  // ---------- Boot ----------
+  function start(data) {
+    const saved = (data && data.S) ? data : load();
+    if (saved && saved.prefs) Object.assign(prefs, saved.prefs);
+    $("errToggle").checked = prefs.showErr;
+    if (saved && validState(saved.S)) {
+      S = saved.S;
+      S.past = S.past || []; S.future = S.future || [];
+      build();
+    } else {
+      newGame();
+    }
+    // First-time visitors see the rules
+    if (!saved) $("help").open = true;
+  }
+  window.claude?.hot?.snapshot?.(() => ({ S, prefs }));
+  window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>
